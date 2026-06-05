@@ -49,6 +49,18 @@ def role_card(role: str) -> rx.Component:
 
 def admin_view() -> rx.Component:
     return rx.fragment(
+        rx.cond(
+            AuthState.demo_mode,
+            rx.el.div(
+                rx.icon("flask-conical", class_name="h-4 w-4 text-blue-500"),
+                rx.el.span(
+                    "Demo role switcher is ENABLED — local development only. In production, role is bound to the authenticated UserProfile.",
+                    class_name="text-xs text-blue-700",
+                ),
+                class_name="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md",
+            ),
+            rx.fragment(),
+        ),
         rx.el.div(
             rx.el.div(
                 rx.el.div(

@@ -32,17 +32,14 @@ class SystemSettingLookup(TypedDict):
 
 
 class SeedState(rx.State):
+    # Idempotent dev seeding — only the four required roles, lookup data,
+    # default locations exactly MIGRATION / UNASSIGNED, transaction types,
+    # document categories, and system settings (expiry warning days = 90).
     locations: list[LocationLookup] = [
         {
-            "code": "UNASSIGNED",
-            "name": "UNASSIGNED",
-            "description": "Default placeholder for items without a confirmed home location",
-            "restricted": False,
-        },
-        {
-            "code": "MIGRATION",
-            "name": "Migration Holding Area",
-            "description": "Default landing zone for opening-balance migration batches",
+            "code": "MIGRATION / UNASSIGNED",
+            "name": "MIGRATION / UNASSIGNED",
+            "description": "Default landing zone and placeholder for opening-balance migration batches",
             "restricted": False,
         },
         {
@@ -196,11 +193,11 @@ class SeedState(rx.State):
             "description": "Submitter cannot approve their own request or adjustment",
         },
         {
-            "key": "expiry_alert_days",
-            "label": "Expiry alert window",
-            "value": "90 days",
+            "key": "expiry_warning_days",
+            "label": "Expiry warning days",
+            "value": "90",
             "category": "Notifications",
-            "description": "Lot is flagged as expiring soon when days-to-expiry ≤ this value",
+            "description": "Lot is flagged as expiring soon when days-to-expiry ≤ this value (default 90 per Phase 1)",
         },
         {
             "key": "default_release_status",
@@ -233,15 +230,15 @@ class SeedState(rx.State):
         {
             "key": "migration_holding_location",
             "label": "Migration holding location",
-            "value": "Migration Holding Area",
+            "value": "MIGRATION / UNASSIGNED",
             "category": "Migration",
-            "description": "Default location for migrated opening-balance lots",
+            "description": "Default location code for migrated opening-balance lots (exactly 'MIGRATION / UNASSIGNED')",
         },
         {
             "key": "default_unassigned_location",
             "label": "Default unassigned location",
-            "value": "UNASSIGNED",
+            "value": "MIGRATION / UNASSIGNED",
             "category": "Inventory",
-            "description": "Placeholder location for items without a confirmed home",
+            "description": "Placeholder location for items without a confirmed home (exactly 'MIGRATION / UNASSIGNED')",
         },
     ]

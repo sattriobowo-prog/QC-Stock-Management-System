@@ -56,7 +56,7 @@ class CSVFileSpec(TypedDict):
 
 
 MIGRATION_LOT_PREFIX = "MIG"
-MIGRATION_LOCATION = "Migration Holding Area"
+MIGRATION_LOCATION = "MIGRATION / UNASSIGNED"
 MIGRATION_STATUS = "Released"
 
 
@@ -374,7 +374,7 @@ class MigrationState(rx.State):
                 target["status"] = "Released"
 
             try:
-                if r["expiry"] not in ("", "—"):
+                if r["expiry"] not in ("", "—", "-", "None", "none"):
                     yyyy, mm, dd = r["expiry"].split("-")
                     days = (
                         date(int(yyyy), int(mm), int(dd)) - date.today()
@@ -384,12 +384,12 @@ class MigrationState(rx.State):
                 else:
                     days = 10**9
                     expiry_known = False
-                    expiry_value = "2099-12-31"
+                    expiry_value = None
             except Exception:
                 logging.exception("Migration expiry parse error")
                 days = 10**9
                 expiry_known = False
-                expiry_value = "2099-12-31"
+                expiry_value = None
 
             inv.lots.insert(
                 0,

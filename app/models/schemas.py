@@ -309,3 +309,170 @@ class MigrationBatchSchema:
     submitted_by: str
     submitted_at: str
     status: str = "Pending"
+    idempotency_seed: str = ""
+
+
+@dataclass
+class StockBalanceSchema:
+    """Unique key: (item_id, lot_number, location)."""
+
+    id: str
+    item_id: str
+    lot_number: str
+    location: str
+    quantity: float
+    unit: str
+    updated_at: str = ""
+
+
+@dataclass
+class CategorySchema:
+    code: str
+    name: str
+    description: str = ""
+
+
+@dataclass
+class FormSchema:
+    code: str
+    name: str
+    description: str = ""
+
+
+@dataclass
+class StorageConditionSchema:
+    code: str
+    name: str
+    temperature_min: float | None = None
+    temperature_max: float | None = None
+    notes: str = ""
+
+
+@dataclass
+class ToxicityClassSchema:
+    code: str
+    name: str
+    ghs_category: str = ""
+    description: str = ""
+
+
+@dataclass
+class NapzaClassSchema:
+    code: str
+    name: str
+    schedule: str = ""
+    description: str = ""
+
+
+@dataclass
+class ItemManufacturerSchema:
+    item_sku: str
+    manufacturer_code: str
+    is_primary: bool = False
+    notes: str = ""
+
+
+@dataclass
+class ItemSourceSchema:
+    item_sku: str
+    vendor_code: str
+    is_primary: bool = False
+    lead_time_days: int = 0
+    notes: str = ""
+
+
+@dataclass
+class ProfileSchema:
+    """User profile — referenced as Profile/UserProfile in the spec."""
+
+    id: str
+    user_id: str
+    full_name: str
+    email: str
+    role: str
+    active: bool = True
+    created_at: str = ""
+
+
+@dataclass
+class PurchaseOrderSchema:
+    """Stub for evidence-only POEvidenceRecord/PurchaseOrder Phase 2 entity."""
+
+    id: str
+    po_number: str
+    vendor_code: str
+    status: str = "Draft"
+    created_at: str = ""
+
+
+@dataclass
+class PurchaseOrderLineSchema:
+    id: str
+    po_id: str
+    item_sku: str
+    quantity: float
+    unit: str
+
+
+@dataclass
+class LotReceiptSchema:
+    id: str
+    receipt_no: str
+    po_id: str
+    item_sku: str
+    lot_number: str
+    quantity: float
+    unit: str
+    received_date: str
+    expiry_known: bool = True
+    expiry_date: str | None = None
+    qc_status: str = "Pending Release"
+
+
+@dataclass
+class MaterialRequestLineSchema:
+    id: str
+    request_id: str
+    item_sku: str
+    quantity: float
+    unit: str
+
+
+@dataclass
+class ReservationSchema:
+    """Soft hold on stock for an approved request awaiting issue."""
+
+    id: str
+    item_id: str
+    lot_number: str
+    quantity: float
+    unit: str
+    reference: str
+    created_by: str
+    created_at: str = ""
+    released: bool = False
+
+
+@dataclass
+class PendingAdjustmentSchema:
+    id: str
+    adjustment_no: str
+    item_id: str
+    delta: float
+    unit: str
+    reason: str
+    submitter: str
+    created_at: str = ""
+    notes: str = ""
+
+
+@dataclass
+class FefoOverrideSchema:
+    id: str
+    issue_id: str
+    fefo_lot: str
+    chosen_lot: str
+    reason: str
+    comment: str
+    user: str
+    timestamp: str

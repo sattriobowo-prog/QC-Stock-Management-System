@@ -2,6 +2,22 @@
 
 Only four roles are permitted across the system per Phase 1 governance:
 QC Analyst, QC Admin, QC Manager, Admin.
+
+Permission matrix (server-enforced):
+
+  * QC Analyst — view inventory / released stock, submit material requests,
+    view own requests, submit adjustment requests only.
+    EXPLICITLY DOES NOT have `issue_stock`.
+
+  * QC Admin — review requests, issue after approval, receive stock,
+    upload documents, perform expiry checks, submit adjustments,
+    propose master data changes.
+
+  * QC Manager — approve/reject adjustments, NAPZA requests, lot release/
+    reject/quarantine, master data changes; reports/dashboards/audit.
+
+  * Admin — manage users/roles/settings/reference data, import migration
+    CSV, reset operational data.
 """
 
 AVAILABLE_ROLES: list[str] = [
@@ -17,8 +33,10 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "view_lots",
         "view_documents",
         "view_reports",
+        "view_released_stock",
         "create_request",
-        "issue_stock",
+        "view_own_requests",
+        "submit_adjustment_request",
         "scan_lookup",
     ],
     "QC Admin": [
@@ -26,16 +44,21 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "view_lots",
         "view_documents",
         "view_reports",
+        "view_audit_log",
+        "view_released_stock",
         "create_request",
+        "review_request",
         "issue_stock",
         "receive_stock",
         "create_adjustment",
+        "submit_adjustment_request",
         "manage_lots",
         "manage_documents",
+        "upload_documents",
         "manage_labels",
+        "perform_expiry_check",
+        "propose_master_data_change",
         "scan_lookup",
-        "approve_transfer",
-        "view_audit_log",
     ],
     "QC Manager": [
         "view_inventory",
@@ -43,16 +66,17 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "view_documents",
         "view_reports",
         "view_audit_log",
-        "create_request",
+        "view_released_stock",
         "approve_request",
-        "issue_stock",
-        "receive_stock",
-        "create_adjustment",
+        "approve_napza_request",
         "approve_adjustment",
         "approve_transfer",
+        "release_lot",
+        "reject_lot",
+        "quarantine_lot",
+        "approve_master_data_change",
         "manage_vendors",
         "manage_documents",
-        "release_lot",
         "scan_lookup",
     ],
     "Admin": [
@@ -61,23 +85,22 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "view_documents",
         "view_reports",
         "view_audit_log",
-        "create_request",
-        "approve_request",
-        "issue_stock",
-        "receive_stock",
-        "create_adjustment",
-        "approve_adjustment",
-        "approve_transfer",
+        "view_released_stock",
+        "manage_users",
+        "manage_roles",
+        "manage_settings",
+        "manage_reference_data",
         "manage_vendors",
         "manage_documents",
         "manage_labels",
         "manage_lots",
-        "manage_users",
-        "manage_settings",
         "release_lot",
+        "reject_lot",
+        "quarantine_lot",
         "migration_commit",
         "scan_lookup",
         "danger_zone",
+        "operational_reset",
     ],
 }
 

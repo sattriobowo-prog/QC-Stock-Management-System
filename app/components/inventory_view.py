@@ -4,6 +4,9 @@ from app.components.badges import status_badge, hazard_badge
 
 
 def stock_priority_pill(p: rx.Var[int], label: rx.Var[str]) -> rx.Component:
+    # Priority levels (Phase 1):
+    # 1 = Out of Stock, 2 = Out of Stock Risk, 3 = Low Stock,
+    # 4 = Low Stock Risk, 5 = Active.
     return rx.el.span(
         label,
         class_name=rx.match(
@@ -21,7 +24,7 @@ def stock_priority_pill(p: rx.Var[int], label: rx.Var[str]) -> rx.Component:
                 "inline-flex px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200 text-xs font-semibold w-fit",
             ),
             (
-                5,
+                4,
                 "inline-flex px-2 py-0.5 rounded-md bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs font-semibold w-fit",
             ),
             "inline-flex px-2 py-0.5 rounded-md bg-green-50 text-green-700 border border-green-200 text-xs font-semibold w-fit",
