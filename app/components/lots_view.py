@@ -31,8 +31,73 @@ def expiry_indicator(days: rx.Var[int]) -> rx.Component:
     )
 
 
+def location_rollup_card() -> rx.Component:
+    return rx.el.div(
+        rx.el.div(
+            rx.icon("map-pin", class_name="h-4 w-4 text-blue-500"),
+            rx.el.span(
+                "Stock Balance Rollup by Location",
+                class_name="text-sm font-semibold text-gray-900",
+            ),
+            class_name="flex items-center gap-2 px-4 py-3 border-b border-gray-200",
+        ),
+        rx.el.div(
+            rx.foreach(
+                InventoryState.location_balances,
+                lambda lb: rx.el.div(
+                    rx.el.div(
+                        rx.icon("map-pin", class_name="h-4 w-4 text-gray-400"),
+                        rx.el.div(
+                            lb["location"],
+                            class_name="text-sm font-semibold text-gray-900",
+                        ),
+                        class_name="flex items-center gap-2 mb-2",
+                    ),
+                    rx.el.div(
+                        rx.el.div(
+                            rx.el.div(
+                                "Lots",
+                                class_name="text-[10px] font-semibold text-gray-500 uppercase",
+                            ),
+                            rx.el.div(
+                                lb["lots"].to_string(),
+                                class_name="text-lg font-bold text-blue-700",
+                            ),
+                        ),
+                        rx.el.div(
+                            rx.el.div(
+                                "Items",
+                                class_name="text-[10px] font-semibold text-gray-500 uppercase",
+                            ),
+                            rx.el.div(
+                                lb["item_count"].to_string(),
+                                class_name="text-lg font-bold text-gray-900",
+                            ),
+                        ),
+                        rx.el.div(
+                            rx.el.div(
+                                "Total Qty",
+                                class_name="text-[10px] font-semibold text-gray-500 uppercase",
+                            ),
+                            rx.el.div(
+                                lb["quantity"].to_string(),
+                                class_name="text-lg font-bold text-yellow-700",
+                            ),
+                        ),
+                        class_name="grid grid-cols-3 gap-2",
+                    ),
+                    class_name="p-3 border border-gray-200 rounded-lg bg-white",
+                ),
+            ),
+            class_name="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4",
+        ),
+        class_name="bg-white border border-gray-200 rounded-lg",
+    )
+
+
 def lots_view() -> rx.Component:
     return rx.fragment(
+        location_rollup_card(),
         rx.el.div(
             rx.el.div(
                 rx.el.div(
@@ -53,11 +118,6 @@ def lots_view() -> rx.Component:
                     rx.el.span(
                         f"{InventoryState.total_lots} lots",
                         class_name="text-xs font-medium text-gray-600 px-2.5 py-1 bg-gray-100 rounded-md border border-gray-200",
-                    ),
-                    rx.el.button(
-                        rx.icon("plus", class_name="h-4 w-4"),
-                        "New Lot",
-                        class_name="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg",
                     ),
                     class_name="flex items-center gap-2",
                 ),
@@ -100,7 +160,7 @@ def lots_view() -> rx.Component:
                                 class_name="text-left text-xs font-semibold text-gray-600 px-4 py-2.5",
                             ),
                             rx.el.th(
-                                "Status",
+                                "QC Status",
                                 class_name="text-left text-xs font-semibold text-gray-600 px-4 py-2.5",
                             ),
                             class_name="bg-gray-50 border-b border-gray-200",

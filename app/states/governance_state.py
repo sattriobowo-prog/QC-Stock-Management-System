@@ -2,6 +2,11 @@ import reflex as rx
 from typing import TypedDict
 from datetime import datetime
 import uuid
+from app.services.vendor_service import (
+    mask_vendor_list,
+    can_edit_vendor,
+)
+from app.services.admin_service import can_perform_reset
 
 
 class Vendor(TypedDict):
@@ -210,7 +215,7 @@ class GovernanceState(rx.State):
             "doc_no": "COA-MRK-241015",
             "title": "Methanol HPLC Grade COA",
             "category": "Certificate of Analysis",
-            "linked_to": "LOT-002 / MTH241015-B",
+            "linked_to": "ITM-001 / LOT-002 / MTH241015-B",
             "file_name": "COA-MRK-241015.pdf",
             "uploaded_by": "Warehouse Officer",
             "uploaded_at": "2024-10-15 09:12",
@@ -234,7 +239,7 @@ class GovernanceState(rx.State):
             "doc_no": "COA-USP-2024-05",
             "title": "Paracetamol Reference Standard COA",
             "category": "Certificate of Analysis",
-            "linked_to": "LOT-004 / PAR-USP-2024-05",
+            "linked_to": "ITM-003 / LOT-004 / PAR-USP-2024-05",
             "file_name": "COA-USP-PAR-240515.pdf",
             "uploaded_by": "QC Manager",
             "uploaded_at": "2024-05-15 14:01",
@@ -426,7 +431,7 @@ class GovernanceState(rx.State):
             "severity": "medium",
             "title": "Buffer expiring in 13 days",
             "message": "Phosphate Buffer pH 6.8 (PHB-INT-241101) expires 2024-12-01.",
-            "target_role": "Warehouse Officer",
+            "target_role": "QC Admin",
             "read": False,
         },
         {
@@ -435,7 +440,7 @@ class GovernanceState(rx.State):
             "severity": "medium",
             "title": "High priority MR",
             "message": "Methanol request MR-2024-1102 awaiting approval.",
-            "target_role": "Approver",
+            "target_role": "QC Manager",
             "read": False,
         },
         {
@@ -444,7 +449,7 @@ class GovernanceState(rx.State):
             "severity": "low",
             "title": "Stock low: Acetonitrile",
             "message": "Acetonitrile HPLC Grade is below minimum (12.0 L / 15.0 L).",
-            "target_role": "Warehouse Officer",
+            "target_role": "QC Admin",
             "read": True,
         },
         {
@@ -479,7 +484,7 @@ class GovernanceState(rx.State):
             "target": "VND-007 Acme Reagents",
             "change_type": "Reactivate",
             "proposed_value": "Status: Active",
-            "requester": "Warehouse Officer",
+            "requester": "QC Admin",
             "approver": "Dr. Sarah Chen",
             "status": "Approved",
             "created_at": "2024-11-08 10:11",
@@ -546,7 +551,6 @@ class GovernanceState(rx.State):
         },
     ]
 
-    # Vendor form
     new_vendor_name: str = ""
     new_vendor_code: str = ""
     new_vendor_category: str = "Reagent Manufacturer"
@@ -554,10 +558,7 @@ class GovernanceState(rx.State):
     new_vendor_email: str = ""
     new_vendor_phone: str = ""
 
-    # Notifications filter
     notification_filter: str = "All"
-
-    # Reset confirm
     reset_confirm_text: str = ""
 
     @rx.var
@@ -598,7 +599,20 @@ class GovernanceState(rx.State):
             [m for m in self.md_requests if m["status"] == "Pending Approval"]
         )
 
-    # ---------- Setters ----------
+    @rx.var
+    async def visible_vendors(self) -> list[Vendor]:
+        from app.states.auth_state import AuthState
+
+        auth = await self.get_state(AuthState)
+        return mask_vendor_list(self.vendors, auth.current_role)
+
+    @rx.var
+    async def can_manage_vendors(self) -> bool:
+        from app.states.auth_state import AuthState
+
+        auth = await self.get_state(AuthState)
+        return can_edit_vendor(auth.current_role)
+
     @rx.event
     def set_new_vendor_name(self, v: str):
         self.new_vendor_name = v
@@ -631,9 +645,16 @@ class GovernanceState(rx.State):
     def set_reset_confirm(self, v: str):
         self.reset_confirm_text = v
 
-    # ---------- Vendor CRUD ----------
     @rx.event
-    def add_vendor(self):
+    async def add_vendor(self):
+        from app.states.auth_state import AuthState
+
+        auth = await self.get_state(AuthState)
+        if not can_edit_vendor(auth.current_role):
+            yield rx.toast.error(
+                f"Role '{auth.current_role}' is not authorized to manage vendors."
+            )
+            return
         if not self.new_vendor_name.strip():
             yield rx.toast.error("Vendor name is required.")
             return
@@ -663,7 +684,13 @@ class GovernanceState(rx.State):
         yield rx.toast.success(f"Vendor {new_v['code']} added")
 
     @rx.event
-    def toggle_vendor_status(self, vendor_id: str):
+    async def toggle_vendor_status(self, vendor_id: str):
+        from app.states.auth_state import AuthState
+
+        auth = await self.get_state(AuthState)
+        if not can_edit_vendor(auth.current_role):
+            yield rx.toast.error("Not authorized to change vendor status.")
+            return
         for v in self.vendors:
             if v["id"] == vendor_id:
                 v["status"] = (
@@ -672,7 +699,6 @@ class GovernanceState(rx.State):
                 yield rx.toast(f"{v['name']} → {v['status']}")
                 return
 
-    # ---------- Notifications ----------
     @rx.event
     def mark_notification_read(self, ntf_id: str):
         for n in self.notifications:
@@ -686,7 +712,6 @@ class GovernanceState(rx.State):
             n["read"] = True
         yield rx.toast.success("All notifications marked as read")
 
-    # ---------- Expiry Tasks ----------
     @rx.event
     def complete_expiry_task(self, task_id: str):
         for t in self.expiry_tasks:
@@ -696,7 +721,6 @@ class GovernanceState(rx.State):
                 yield rx.toast.success(f"Task {t['task_no']} completed")
                 return
 
-    # ---------- Transfers ----------
     @rx.event
     async def approve_transfer(self, trf_id: str):
         from app.states.auth_state import AuthState
@@ -713,7 +737,6 @@ class GovernanceState(rx.State):
                 yield rx.toast.success(f"Transfer {t['transfer_no']} approved")
                 return
 
-    # ---------- Master Data Requests ----------
     @rx.event
     async def approve_md_request(self, mdr_id: str):
         from app.states.auth_state import AuthState
@@ -743,3 +766,51 @@ class GovernanceState(rx.State):
                 m["approver"] = auth.current_user
                 yield rx.toast(f"{m['request_no']} rejected")
                 return
+
+    @rx.event
+    async def perform_operational_reset(self):
+        """Admin-only operational reset.
+
+        Clears transactional data (requests, issues, receivings, adjustments,
+        transfers, expiry tasks, notifications, audit log) but preserves
+        accounts, roles, vendors, items, lots master, document categories,
+        and system settings.
+        """
+        from app.states.auth_state import AuthState
+        from app.states.operations_state import OperationsState
+        from app.states.migration_state import MigrationState
+
+        auth = await self.get_state(AuthState)
+        ok, reason = can_perform_reset(
+            auth.current_role, self.reset_confirm_text
+        )
+        if not ok:
+            yield rx.toast.error(reason)
+            return
+
+        ops = await self.get_state(OperationsState)
+        mig = await self.get_state(MigrationState)
+
+        ops.requests = []
+        ops.issues = []
+        ops.receivings = []
+        ops.adjustments = []
+        ops.audit_log = []
+        self.transfers = []
+        self.expiry_tasks = []
+        self.notifications = []
+        self.md_requests = []
+        mig.pending_rows = []
+
+        ops._audit(
+            auth.current_user,
+            auth.current_role,
+            "OPERATIONAL_RESET",
+            "system",
+            "Cleared transactional data; preserved accounts, roles, vendors, items, settings.",
+        )
+
+        self.reset_confirm_text = ""
+        yield rx.toast.success(
+            "Operational reset complete — accounts and roles preserved."
+        )

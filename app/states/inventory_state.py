@@ -1,5 +1,13 @@
 import reflex as rx
 from typing import TypedDict
+from app.services.stock_balance_service import (
+    stock_status_priority,
+    stock_status_label,
+    current_stock,
+    active_90_stock,
+    rollup_by_item_lot_location,
+    rollup_by_location,
+)
 
 
 class Item(TypedDict):
@@ -41,10 +49,31 @@ class Lot(TypedDict):
     unit: str
     received_date: str
     expiry_date: str
+    expiry_known: bool
     status: str
     location: str
     vendor: str
     days_to_expiry: int
+
+
+class StockBalance(TypedDict):
+    item_id: str
+    item_name: str
+    lot_number: str
+    location: str
+    quantity: float
+    unit: str
+    status: str
+    expiry_date: str
+    days_to_expiry: int
+    vendor: str
+
+
+class LocationBalance(TypedDict):
+    location: str
+    lots: int
+    quantity: float
+    item_count: int
 
 
 class InventoryState(rx.State):
@@ -351,6 +380,7 @@ class InventoryState(rx.State):
             "unit": "L",
             "received_date": "2024-08-01",
             "expiry_date": "2026-08-01",
+            "expiry_known": True,
             "status": "Released",
             "location": "Solvent Cabinet A",
             "vendor": "Merck KGaA",
@@ -365,6 +395,7 @@ class InventoryState(rx.State):
             "unit": "L",
             "received_date": "2024-10-15",
             "expiry_date": "2026-10-15",
+            "expiry_known": True,
             "status": "Released",
             "location": "Solvent Cabinet A",
             "vendor": "Merck KGaA",
@@ -379,6 +410,7 @@ class InventoryState(rx.State):
             "unit": "L",
             "received_date": "2024-09-20",
             "expiry_date": "2025-03-20",
+            "expiry_known": True,
             "status": "Released",
             "location": "Solvent Cabinet A",
             "vendor": "Sigma-Aldrich",
@@ -393,6 +425,7 @@ class InventoryState(rx.State):
             "unit": "g",
             "received_date": "2024-05-15",
             "expiry_date": "2025-05-15",
+            "expiry_known": True,
             "status": "Released",
             "location": "Cold Storage R-1",
             "vendor": "USP",
@@ -407,6 +440,7 @@ class InventoryState(rx.State):
             "unit": "mg",
             "received_date": "2024-02-10",
             "expiry_date": "2025-02-10",
+            "expiry_known": True,
             "status": "Released",
             "location": "Vault NPZ-01",
             "vendor": "USP",
@@ -421,6 +455,7 @@ class InventoryState(rx.State):
             "unit": "L",
             "received_date": "2024-11-01",
             "expiry_date": "2024-12-01",
+            "expiry_known": True,
             "status": "Released",
             "location": "Buffer Shelf B",
             "vendor": "Internal Prep",
@@ -435,6 +470,7 @@ class InventoryState(rx.State):
             "unit": "L",
             "received_date": "2024-11-05",
             "expiry_date": "2025-02-05",
+            "expiry_known": True,
             "status": "Released",
             "location": "Reagent Shelf D",
             "vendor": "Internal Prep",
@@ -449,6 +485,7 @@ class InventoryState(rx.State):
             "unit": "g",
             "received_date": "2024-11-13",
             "expiry_date": "2025-11-13",
+            "expiry_known": True,
             "status": "Pending Release",
             "location": "Cold Storage R-1",
             "vendor": "Sigma-Aldrich",
@@ -463,6 +500,7 @@ class InventoryState(rx.State):
             "unit": "pcs",
             "received_date": "2024-10-07",
             "expiry_date": "2027-10-07",
+            "expiry_known": True,
             "status": "Released",
             "location": "Consumable Shelf E",
             "vendor": "Millipore",
@@ -473,7 +511,10 @@ class InventoryState(rx.State):
     search_query: str = ""
     category_filter: str = "All"
     status_filter: str = "All"
+    location_filter: str = "All"
+    sort_by: str = "priority"
     selected_item_id: str = ""
+    detail_tab: str = "overview"
 
     @rx.var
     def categories(self) -> list[str]:
@@ -496,6 +537,16 @@ class InventoryState(rx.State):
         ]
 
     @rx.var
+    def locations(self) -> list[str]:
+        locs = ["All"]
+        seen = set()
+        for l in self.lots:
+            if l["location"] and l["location"] not in seen:
+                seen.add(l["location"])
+                locs.append(l["location"])
+        return locs
+
+    @rx.var
     def filtered_items(self) -> list[Item]:
         result = self.items
         q = self.search_query.lower().strip()
@@ -515,6 +566,19 @@ class InventoryState(rx.State):
             ]
         if self.status_filter != "All":
             result = [i for i in result if i["status"] == self.status_filter]
+        if self.location_filter != "All":
+            result = [
+                i for i in result if i["location"] == self.location_filter
+            ]
+        if self.sort_by == "priority":
+            result = sorted(
+                result,
+                key=lambda x: stock_status_priority(x, self.lots),
+            )
+        elif self.sort_by == "name":
+            result = sorted(result, key=lambda x: x["name"])
+        elif self.sort_by == "stock":
+            result = sorted(result, key=lambda x: -x["on_hand"])
         return result
 
     @rx.var
@@ -546,6 +610,44 @@ class InventoryState(rx.State):
     @rx.var
     def total_lots(self) -> int:
         return len(self.lots)
+
+    @rx.var
+    def total_current_stock_value(self) -> float:
+        return round(
+            sum(current_stock(self.lots, i["id"]) for i in self.items), 2
+        )
+
+    @rx.var
+    def total_active_90_value(self) -> float:
+        return round(
+            sum(active_90_stock(self.lots, i["id"]) for i in self.items), 2
+        )
+
+    @rx.var
+    def stock_balances(self) -> list[StockBalance]:
+        return rollup_by_item_lot_location(self.lots)
+
+    @rx.var
+    def location_balances(self) -> list[LocationBalance]:
+        return rollup_by_location(self.lots)
+
+    @rx.var
+    def items_with_metrics(self) -> list[dict]:
+        out = []
+        for i in self.filtered_items:
+            cs = current_stock(self.lots, i["id"])
+            a90 = active_90_stock(self.lots, i["id"])
+            lot_count = len([l for l in self.lots if l["item_id"] == i["id"]])
+            enriched = {**i, "current_stock": cs, "active_90": a90}
+            out.append(
+                {
+                    **enriched,
+                    "lot_count": lot_count,
+                    "stock_status": stock_status_label(enriched),
+                    "priority": stock_status_priority(enriched),
+                }
+            )
+        return out
 
     @rx.var
     def selected_item(self) -> Item:
@@ -590,6 +692,54 @@ class InventoryState(rx.State):
     def selected_item_lots(self) -> list[Lot]:
         return [l for l in self.lots if l["item_id"] == self.selected_item_id]
 
+    @rx.var
+    def selected_item_current_stock(self) -> float:
+        return current_stock(self.lots, self.selected_item_id)
+
+    @rx.var
+    def selected_item_active_90(self) -> float:
+        return active_90_stock(self.lots, self.selected_item_id)
+
+    @rx.var
+    def selected_item_status_label(self) -> str:
+        enriched = {
+            **self.selected_item,
+            "current_stock": self.selected_item_current_stock,
+            "active_90": self.selected_item_active_90,
+        }
+        return stock_status_label(enriched)
+
+    @rx.var
+    def selected_item_balances(self) -> list[StockBalance]:
+        return [
+            b
+            for b in rollup_by_item_lot_location(self.lots)
+            if b["item_id"] == self.selected_item_id
+        ]
+
+    @rx.var
+    def selected_item_sources(self) -> list[dict]:
+        seen: dict[str, dict] = {}
+        for l in self.lots:
+            if l["item_id"] != self.selected_item_id:
+                continue
+            v = l["vendor"] or "—"
+            if v not in seen:
+                seen[v] = {
+                    "vendor": v,
+                    "lot_count": 0,
+                    "total_qty": 0.0,
+                    "unit": l["unit"],
+                    "last_received": l["received_date"],
+                }
+            seen[v]["lot_count"] += 1
+            seen[v]["total_qty"] = round(
+                seen[v]["total_qty"] + l["quantity"], 4
+            )
+            if l["received_date"] > seen[v]["last_received"]:
+                seen[v]["last_received"] = l["received_date"]
+        return list(seen.values())
+
     @rx.event
     def set_search(self, q: str):
         self.search_query = q
@@ -603,8 +753,21 @@ class InventoryState(rx.State):
         self.status_filter = s
 
     @rx.event
+    def set_location(self, l: str):
+        self.location_filter = l
+
+    @rx.event
+    def set_sort(self, s: str):
+        self.sort_by = s
+
+    @rx.event
+    def set_detail_tab(self, t: str):
+        self.detail_tab = t
+
+    @rx.event
     def select_item(self, item_id: str):
         self.selected_item_id = item_id
+        self.detail_tab = "overview"
         return rx.redirect(f"/inventory/{item_id}")
 
     @rx.event
@@ -612,18 +775,17 @@ class InventoryState(rx.State):
         item_id = self.router.page.params.get("item_id", "")
         if item_id:
             self.selected_item_id = item_id
+            self.detail_tab = "overview"
 
     def _validate_stock_change(
         self, item_id: str, delta: float
     ) -> tuple[bool, str]:
-        """Service-layer rule: reject negative stock without silent clamping."""
+        from app.services.stock_service import validate_stock_change
+
         for i in self.items:
             if i["id"] == item_id:
-                new_qty = i["on_hand"] + delta
-                if new_qty < 0:
-                    return (
-                        False,
-                        f"Operation rejected: would result in negative stock ({new_qty:.3f} {i['unit']}). Stock cannot go below zero.",
-                    )
-                return (True, "OK")
+                ok, reason, _ = validate_stock_change(
+                    i["on_hand"], delta, i["unit"]
+                )
+                return (ok, reason)
         return (False, f"Item {item_id} not found.")

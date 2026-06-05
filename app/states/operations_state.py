@@ -946,6 +946,7 @@ class OperationsState(rx.State):
                 "unit": item["unit"],
                 "received_date": new_rcv["received_date"],
                 "expiry_date": self.rcv_expiry,
+                "expiry_known": True,
                 "status": "Pending Release",
                 "location": item["location"],
                 "vendor": new_rcv["vendor"],
